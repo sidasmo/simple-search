@@ -117,10 +117,10 @@ impl InvertedIndex {
 }
 
 fn intersect_posting_lists(matched: Vec<Vec<Posting>>) -> Vec<Posting> {
-    let mut result: Vec<Posting> = Vec::new();
+    let mut result = matched[0].clone();
     if matched.len() > 1 {
-        for i in 0..matched.len() - 1 {
-            result.extend(intersect(matched[i].clone(), matched[i + 1].clone()));
+        for element in matched {
+            result = intersect(result.clone(), element.clone());
         }
     } else {
         result.extend(matched[0].clone());
