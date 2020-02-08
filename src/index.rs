@@ -81,11 +81,15 @@ impl InvertedIndex {
             matched.push(self.inverted_lists[&term].clone());
             //todo: intersect and merge functions for posting_lists
         }
+        let mut result : Vec<Posting> = Vec::new(); 
         if matched.len() > 1 {
-            intersect_posting_lists(matched[0].clone(), matched[1].clone())
+            for i in 0..matched.len()-1{
+                result.extend(intersect_posting_lists(matched[i].clone(), matched[i+1].clone()));
+            }     
         } else {
-            matched[0].clone()
+            result.extend(matched[0].clone());
         }
+        result
     }
 
     pub fn import_document(&mut self, doc_id: u32, text: &str) {
@@ -138,7 +142,6 @@ fn intersect_posting_lists(l1: Vec<Posting>, l2: Vec<Posting>) -> Vec<Posting> {
             }
         }
     }
-    println!("{:?}", results);
     results
 }
 
@@ -147,6 +150,7 @@ fn combine_postings(post1: Posting, post2: Posting) -> Posting {
         doc_id: post1.doc_id,
         term_frequency: post1.term_frequency + post2.term_frequency,
         score: post1.score + post2.score,
+        //todo: combine positionsvector
         positions: post1.positions,
         scored: post1.scored,
     }
