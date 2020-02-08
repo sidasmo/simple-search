@@ -126,6 +126,7 @@ fn intersect_posting_lists(l1: Vec<Posting>, l2: Vec<Posting>) -> Vec<Posting> {
     let mut results = Vec::new();
     let mut i_s = 0;
     let mut i_l = 0;
+    //todo: implement galopping search for faster intersection
     while i_s < short.len() && i_l < long.len() {
         match short[i_s].doc_id.cmp(&long[i_l].doc_id) {
             Ordering::Greater => i_l += 1,
@@ -150,18 +151,6 @@ fn combine_postings(post1: Posting, post2: Posting) -> Posting {
         scored: post1.scored,
     }
 }
-
-// for mut posting in list1 {
-//     if let Some(pos) = list2.iter().find(|el| posting.doc_id == el.doc_id) {
-//         println!("POSting {:?}", posting);
-//         let positions = posting.positions.extend(pos.positions.clone());
-//         println!("POSIOTIONS{:#?}",positions);
-// result.push(QueryResult{
-//     doc_id : posting.doc_id,
-//     score : posting.score + pos.score,
-//     positions
-
-// });
 
 // todo:
 // fn mergePostingList(list1 : Vec<Posting>, list2 : Vec<Posting>) -> Vec<Posting>{
