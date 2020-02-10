@@ -80,11 +80,13 @@ impl InvertedIndex {
         };
         let tokenized_query = tokenize_text(query);
         let mut matched: Vec<Vec<Posting>> = Vec::new();
-        for term in tokenized_query {
-            matched.push(self.inverted_lists[&term].clone());
-            //todo: intersect and merge functions for posting_lists
-        }
-        Some(intersect_posting_lists(matched))
+
+        let _done = tokenized_query
+            .iter()
+            .map(|term| matched.push(self.inverted_lists[term].clone()));
+
+        //todo: intersect and merge functions for posting_lists
+        Some(process_posting_lists(matched))
     }
 
     pub fn import_document(&mut self, doc_id: u32, text: &str) {
@@ -116,48 +118,50 @@ impl InvertedIndex {
     }
 }
 
-fn intersect_posting_lists(matched: Vec<Vec<Posting>>) -> Vec<Posting> {
-    let mut result = matched[0].clone();
-    if matched.len() > 1 {
-        for element in matched {
-            result = intersect(result.clone(), element.clone());
-        }
+fn process_posting_lists(matched: Vec<Vec<Posting>>) -> Vec<Posting> {
+    let mut result = Vec::new();
+    result = if matched.len() > 1 {
+        matched
+            .iter()
+            .cloned()
+            .flat_map(|postinglist| intersect_posting_lists(result.clone(), postinglist))
+            .collect()
     } else {
-        result.extend(matched[0].clone());
-    }
-    fn intersect(l1: Vec<Posting>, l2: Vec<Posting>) -> Vec<Posting> {
-        let (short, long): (Vec<Posting>, Vec<Posting>) = if l1.len() < l2.len() {
-            (l1, l2)
-        } else {
-            (l2, l1)
-        };
-        let mut results = Vec::new();
-        let mut i_s = 0;
-        let mut i_l = 0;
-        //todo: implement galopping search for faster intersection
-        while i_s < short.len() && i_l < long.len() {
-            match short[i_s].doc_id.cmp(&long[i_l].doc_id) {
-                Ordering::Greater => i_l += 1,
-                Ordering::Less => i_s += 1,
-                Ordering::Equal => {
-                    results.push(combine_postings(short[i_s].clone(), long[i_l].clone()));
-                    i_s += 1;
-                    i_l += 1;
-                }
-            }
-        }
-        results
-    }
+        matched[0].clone()
+    };
     result
 }
+fn intersect_posting_lists(l1: Vec<Posting>, l2: Vec<Posting>) -> Vec<Posting> {
+    let (short, long): (Vec<Posting>, Vec<Posting>) = if l1.len() < l2.len() {
+        (l1, l2)
+    } else {
+        (l2, l1)
+    };
+    let mut results = Vec::new();
+    let mut i_s = 0;
+    let mut i_l = 0;
+    while i_s < short.len() && i_l < long.len() {
+        match short[i_s].doc_id.cmp(&long[i_l].doc_id) {
+            Ordering::Greater => i_l += 1,
+            Ordering::Less => i_s += 1,
+            Ordering::Equal => {
+                results.push(merge_postings(short[i_s].clone(), long[i_l].clone()));
+                i_s += 1;
+                i_l += 1;
+            }
+        }
+    }
+    results
+}
 
-fn combine_postings(post1: Posting, post2: Posting) -> Posting {
+fn merge_postings(mut post1: Posting, mut post2: Posting) -> Posting {
+    post1.positions.append(&mut post2.positions);
     Posting {
         doc_id: post1.doc_id,
         term_frequency: post1.term_frequency + post2.term_frequency,
         score: post1.score + post2.score,
         //todo: combine positionsvector
-        positions: post1.positions,
+        positions : post1.positions,
         scored: post1.scored,
     }
 }
