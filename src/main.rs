@@ -8,9 +8,9 @@ fn main() {
     //println!("first import done {:?}", ii.clone());
     ii.import_document(2, "Hallo, Hallo hsdshah hallo");
     ii.import_document(3, "keine ahnung hsdshah");
-    let answer = ii.query_processing("");
+    let answer = ii.query_processing("hallo hallo");
     match answer {
-        Some(docs) => println!("{:#?}", docs),
+        Some(docs) => println!("RESULT {:#?}", docs),
         None => println!("we can't found documents who match this query"),
     }
 }

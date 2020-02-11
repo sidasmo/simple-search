@@ -79,11 +79,12 @@ impl InvertedIndex {
             return None;
         };
         let tokenized_query = tokenize_text(query);
-        let mut matched: Vec<Vec<Posting>> = Vec::new();
 
-        let _done = tokenized_query
-            .iter()
-            .map(|term| matched.push(self.inverted_lists[term].clone()));
+        let mut matched: Vec<Vec<Posting>> = Vec::new();
+        for term in tokenized_query {
+            matched.push(self.inverted_lists[&term].clone());
+        }
+        
 
         //todo: intersect and merge functions for posting_lists
         Some(process_posting_lists(matched))
@@ -110,7 +111,7 @@ impl InvertedIndex {
                 posting_list.push(Posting::new(doc_id));
             }
         // Case 2: Term not in index.
-        } else {
+        } else  {
             let mut posting_list = Vec::new();
             posting_list.push(Posting::new(doc_id));
             self.inverted_lists.insert(term, posting_list);
@@ -119,16 +120,12 @@ impl InvertedIndex {
 }
 
 fn process_posting_lists(matched: Vec<Vec<Posting>>) -> Vec<Posting> {
-    let mut result = Vec::new();
-    result = if matched.len() > 1 {
-        matched
-            .iter()
-            .cloned()
-            .flat_map(|postinglist| intersect_posting_lists(result.clone(), postinglist))
-            .collect()
-    } else {
-        matched[0].clone()
-    };
+    let mut result = matched[0].clone();
+    if matched.len() > 1 {
+        for i in 1..matched.len() {
+            result = intersect_posting_lists(result.clone(), matched[i].clone());
+        }
+    }
     result
 }
 fn intersect_posting_lists(l1: Vec<Posting>, l2: Vec<Posting>) -> Vec<Posting> {
@@ -138,33 +135,78 @@ fn intersect_posting_lists(l1: Vec<Posting>, l2: Vec<Posting>) -> Vec<Posting> {
         (l2, l1)
     };
     let mut results = Vec::new();
-    let mut i_s = 0;
-    let mut i_l = 0;
-    while i_s < short.len() && i_l < long.len() {
-        match short[i_s].doc_id.cmp(&long[i_l].doc_id) {
-            Ordering::Greater => i_l += 1,
-            Ordering::Less => i_s += 1,
-            Ordering::Equal => {
-                results.push(merge_postings(short[i_s].clone(), long[i_l].clone()));
-                i_s += 1;
-                i_l += 1;
-            }
+    println!("short: {:?}\n , long : {:?}\n",short,long);
+    for posting in short{
+        println!("Post: {:?}\n , long : {:?}\n",posting,long);
+        match horse(posting, &long){
+            Ok(res) => results.push(res),
+            Err(_e) => break
         }
+
     }
+    // Zipper Algorithm
+    // let mut i_s = 0;
+    // let mut i_l = 0;
+    // while i_s < short.len() && i_l < long.len() {
+    //     match short[i_s].doc_id.cmp(&long[i_l].doc_id) {
+    //         Ordering::Greater => i_l += 1,
+    //         Ordering::Less => i_s += 1,
+    //         Ordering::Equal => {
+    //             let merged = merge_postings(short[i_s].clone(), long[i_l].clone());
+    //             println!("Debug intersect: {:?} short: {:?} long: {:?} ", merged, short[i_s], long[i_l] );
+    //             results.push(merged);
+    //             i_s += 1;
+    //             i_l += 1;
+    //         }
+    //     }
+    // }
     results
 }
 
 fn merge_postings(mut post1: Posting, mut post2: Posting) -> Posting {
+    println!("Post1: {:?}\nPost2 : {:?}\n",post1,post2);
     post1.positions.append(&mut post2.positions);
     Posting {
         doc_id: post1.doc_id,
         term_frequency: post1.term_frequency + post2.term_frequency,
         score: post1.score + post2.score,
-        //todo: combine positionsvector
         positions : post1.positions,
         scored: post1.scored,
     }
 }
+
+fn binary_search(mut l: usize, mut r: usize, posting : Posting, list: &[Posting]) -> Result<Posting, &'static str> {
+    while l<=r {
+        let m = (l + r) / 2_usize;
+        match posting.doc_id.cmp(&list[m].doc_id) {
+            Ordering::Greater => l = m + 1_usize,
+            Ordering::Less => r = m - 1_usize,
+            Ordering::Equal => {
+              return Ok(merge_postings(posting, list[m].clone()));
+            }
+        }
+    }
+    Err("Number not found")
+}
+
+fn horse(posting: Posting, list: &[Posting]) -> Result<Posting, &'static str> {
+    let mut step = 1;
+    if list.is_empty() {return Err("list length = 0")}
+    if list[0].doc_id == posting.doc_id {
+        return Ok(merge_postings(posting, list[0].clone()));
+    }
+    while step < list.len() && list[step].doc_id < posting.doc_id {
+        step *=  2;
+    }
+    if step > list.len() {
+        step = list.len();
+    }
+    match binary_search(step / 2, step, posting, list) {
+        Ok(v) => Ok(v),
+        Err(e) => Err(e),
+    }
+}
+
 
 // todo:
 // fn mergePostingList(list1 : Vec<Posting>, list2 : Vec<Posting>) -> Vec<Posting>{
