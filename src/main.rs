@@ -9,7 +9,7 @@ use std::io::BufReader;
 
 fn main() {
     let mut ii = index::InvertedIndex::new();
-    const DATASET: &str = "/home/dissi/Projekte/tantivy-ir-evaluation/datasets/movies.txt";
+    const DATASET: &str = "EXAMPLE_DATA";
     let f = File::open(DATASET);
     println!("start import");
     match f {
